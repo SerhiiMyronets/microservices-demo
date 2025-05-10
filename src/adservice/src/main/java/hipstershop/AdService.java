@@ -16,7 +16,6 @@
 
 package hipstershop;
 
-import io.grpc.ServerInterceptors;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -212,14 +211,12 @@ public final class AdService {
       logger.info("Tracing disabled.");
       return;
     }
+    logger.info("Tracing enabled but temporarily unavailable");
+    logger.info("See https://github.com/GoogleCloudPlatform/microservices-demo/issues/422 for more info.");
 
-    GlobalOpenTelemetry.set(
-        io.opentelemetry.sdk.OpenTelemetrySdk.builder()
-            .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-            .build()
-    );
+    // TODO(arbrown) Implement OpenTelemetry tracing
 
-    logger.info("Tracing propagation enabled via OpenTelemetry.");
+    logger.info("Tracing enabled - Stackdriver exporter initialized.");
   }
 
   /** Main launches the server from the command line. */
