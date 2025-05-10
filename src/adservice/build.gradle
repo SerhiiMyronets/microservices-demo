@@ -35,7 +35,7 @@ ext {
 dependencies {
     implementation "io.opentelemetry:opentelemetry-api:1.33.0"
     implementation "io.opentelemetry:opentelemetry-sdk:1.33.0"
-    implementation("io.opentelemetry.instrumentation:opentelemetry-grpc-server:1.33.0-alpha")
+    implementation("io.opentelemetry.instrumentation:opentelemetry-grpc-server:1.32.0-alpha")
 
     if (speed) {
         implementation fileTree(dir: offlineCompile, include: '*.jar')
