@@ -16,6 +16,13 @@
 
 package hipstershop;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -82,7 +89,8 @@ public final class AdService {
   }
 
   private static class AdServiceImpl extends hipstershop.AdServiceGrpc.AdServiceImplBase {
-
+    private static final Tracer tracer =
+        GlobalOpenTelemetry.getTracer("hipstershop.AdService");
     /**
      * Retrieves ads based on context provided in the request {@code AdRequest}.
      *
@@ -92,29 +100,33 @@ public final class AdService {
      */
     @Override
     public void getAds(AdRequest req, StreamObserver<AdResponse> responseObserver) {
-      AdService service = AdService.getInstance();
-      try {
-        List<Ad> allAds = new ArrayList<>();
-        logger.info("received ad request (context_words=" + req.getContextKeysList() + ")");
-        if (req.getContextKeysCount() > 0) {
-          for (int i = 0; i < req.getContextKeysCount(); i++) {
-            Collection<Ad> ads = service.getAdsByCategory(req.getContextKeys(i));
-            allAds.addAll(ads);
-          }
-        } else {
-          allAds = service.getRandomAds();
+        Span span = tracer.spanBuilder("AdService.getAds").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            AdService service = AdService.getInstance();
+            try {
+                List<Ad> allAds = new ArrayList<>();
+                logger.info("received ad request (context_words=" + req.getContextKeysList() + ")");
+                if (req.getContextKeysCount() > 0) {
+                    for (int i = 0; i < req.getContextKeysCount(); i++) {
+                        Collection<Ad> ads = service.getAdsByCategory(req.getContextKeys(i));
+                        allAds.addAll(ads);
+                    }
+                } else {
+                    allAds = service.getRandomAds();
+                }
+                if (allAds.isEmpty()) {
+                    allAds = service.getRandomAds();
+                }
+                AdResponse reply = AdResponse.newBuilder().addAllAds(allAds).build();
+                responseObserver.onNext(reply);
+                responseObserver.onCompleted();
+            } catch (StatusRuntimeException e) {
+                logger.log(Level.WARN, "GetAds Failed with status {}", e.getStatus());
+                responseObserver.onError(e);
+            }
+        } finally {
+            span.end();
         }
-        if (allAds.isEmpty()) {
-          // Serve random ads.
-          allAds = service.getRandomAds();
-        }
-        AdResponse reply = AdResponse.newBuilder().addAllAds(allAds).build();
-        responseObserver.onNext(reply);
-        responseObserver.onCompleted();
-      } catch (StatusRuntimeException e) {
-        logger.log(Level.WARN, "GetAds Failed with status {}", e.getStatus());
-        responseObserver.onError(e);
-      }
     }
   }
 
@@ -207,16 +219,9 @@ public final class AdService {
   }
 
   private static void initTracing() {
-    if (System.getenv("DISABLE_TRACING") != null) {
-      logger.info("Tracing disabled.");
-      return;
-    }
-    logger.info("Tracing enabled but temporarily unavailable");
-    logger.info("See https://github.com/GoogleCloudPlatform/microservices-demo/issues/422 for more info.");
-
-    // TODO(arbrown) Implement OpenTelemetry tracing
-
-    logger.info("Tracing enabled - Stackdriver exporter initialized.");
+    OpenTelemetrySdk.builder()
+        .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+        .buildAndRegisterGlobal();
   }
 
   /** Main launches the server from the command line. */
