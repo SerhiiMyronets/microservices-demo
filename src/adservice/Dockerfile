@@ -27,12 +27,11 @@ RUN ./gradlew installDist
 
 FROM eclipse-temurin:21.0.5_11-jre-alpine@sha256:4300bfe1e11f3dfc3e3512f39939f9093cf18d0e581d1ab1ccd0512f32fe33f0
 
-# @TODO: https://github.com/GoogleCloudPlatform/microservices-demo/issues/2517
-# Download Stackdriver Profiler Java agent
-# RUN mkdir -p /opt/cprof && \
-#     wget -q -O- https://storage.googleapis.com/cloud-profiler/java/latest/profiler_java_agent_alpine.tar.gz \
-#     | tar xzv -C /opt/cprof && \
-#     rm -rf profiler_java_agent.tar.gz
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v1.33.0/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
+
+ENV JAVA_TOOL_OPTIONS="-javaagent:/otel/opentelemetry-javaagent.jar"
+ENV OTEL_SERVICE_NAME=adservice
+ENV OTEL_METRICS_EXPORTER=none
 
 WORKDIR /app
 COPY --from=builder /app .

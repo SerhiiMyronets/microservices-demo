@@ -16,10 +16,6 @@
 
 package hipstershop;
 
-import io.opentelemetry.api.GlobalOpenTelemetry;
-import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
-import io.opentelemetry.context.propagation.ContextPropagators;
-import io.opentelemetry.instrumentation.grpc.v1_6.OpenTelemetryServerInterceptor;
 import io.grpc.ServerInterceptors;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -61,9 +57,7 @@ public final class AdService {
 
     server =
         ServerBuilder.forPort(port)
-            .addService(
-                ServerInterceptors.intercept(new AdServiceImpl(), OpenTelemetryServerInterceptor.create())
-            )
+            .addService(new AdServiceImpl())
             .addService(healthMgr.getHealthService())
             .build()
             .start();
